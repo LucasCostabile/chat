@@ -1,0 +1,84 @@
+<div class="container-fluid mt-3">
+    <h1>CoderZap</h1>
+
+    <div>
+        <p id="messageLogs"></p>
+    </div>
+
+    <div>
+        <input id="chatBox" placeholder="Mensagem Aqui">
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    const socket = io();
+    let user
+    let chatBox = document.getElementById('chatBox');
+    Swal.fire({
+        title: "Identificar",
+        input: "text",
+        text: "Digite seu nome!",
+        inputValidator: (value) => {
+            return !value && "Você precisa escrever seu nome!";
+        },
+        allowOutsideClick: false,
+    }).then((result) => {
+        user = result.value;
+        socket.emit('userName', user); // enviando o nome do usuario conectado para o servidor
+    });
+    // escutando o evento de usuario conectado e emitindo na tela para o cliente 
+    socket.on("userConnected", (user) => {
+        console.log("userConnected", user);
+        Swal.fire({
+            icon: "info",
+            title: "Novo Usuário",
+            text: `${user} entrou na sala!`
+        });
+    });
+
+    chatBox.addEventListener('keyup', (e) => {
+        console.log("keyup", e.key); // imprime no console do navegador a tecla que foi pressionada quando o evento de tecla é acionado
+        if (e.key === 'Enter') {     // verifica se a tecla Enter foi pressionada
+            if (chatBox.value.trim().length > 0) { // verifica se o valor do campo de texto há algum texto e garantindo que não envie mensagens vazias
+
+                //console.log("enviando mensagem", chatBox.value);
+                //emite um evento para o servidor, estes dados incluem o nome de usuário do remetente (user) e a mensagem digitada (chatBox.value).
+                socket.emit('message', { user: user, message: chatBox.value });
+                dbSend()
+                chatBox.value = ''; //limpa o campo de entrada de texto,
+                
+            }
+        }
+    });
+
+
+    const dbSend = async () => {
+        let userData = {
+            user: user,
+            message: chatBox.value
+        }
+        const resp = await fetch("/chat", {
+            method: 'post',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData)
+        })
+        console.log(userData)
+    }
+
+    socket.on('messageLogs', (data) => {
+        //console.log("recebendo mensagem", data); // exibe as mensagens recebidas do servidor
+        let logs = document.getElementById('messageLogs'); // localiza o id messageLogs onde será exibido as mensagens 
+        let messages = "" //inicializa uma string vazia, que será usada para construir o HTML das mensagens recebidas.
+        data.forEach((message) => {
+            messages = messages + `${message.user} diz: ${message.message} <br>`;
+        });
+        logs.innerHTML = messages;
+    });
+
+
+</script>
